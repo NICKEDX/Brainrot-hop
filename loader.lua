@@ -1,6 +1,7 @@
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
+local UserInputService = game:GetService("UserInputService")
 
 local PlaceID = game.PlaceId
 local player = Players.LocalPlayer
@@ -28,16 +29,16 @@ title.Font = Enum.Font.SourceSansBold
 title.TextSize = 18
 
 local function createButton(text, posY)
-    local btn = Instance.new("TextButton", frame)
-    btn.Size = UDim2.new(1, -20, 0, 30)
-    btn.Position = UDim2.new(0, 10, 0, posY)
-    btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-    btn.TextColor3 = Color3.new(1,1,1)
-    btn.Font = Enum.Font.SourceSans
-    btn.TextSize = 16
-    btn.Text = text
-    btn.AutoButtonColor = true
-    return btn
+	local btn = Instance.new("TextButton", frame)
+	btn.Size = UDim2.new(1, -20, 0, 30)
+	btn.Position = UDim2.new(0, 10, 0, posY)
+	btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Font = Enum.Font.SourceSans
+	btn.TextSize = 16
+	btn.Text = text
+	btn.AutoButtonColor = true
+	return btn
 end
 
 local btnToggleHop = createButton("Ativar Hop Automático: OFF", 40)
@@ -53,8 +54,76 @@ statusLabel.Font = Enum.Font.SourceSansItalic
 statusLabel.TextSize = 14
 
 local function GetServers(cursor)
-    local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(PlaceID)
-    if cursor then
-        url = url .. "&cursor=" .. cursor
-    end
-    local response
+	local url = ("https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100"):format(PlaceID)
+	if cursor then
+		url = url .. "&cursor=" .. cursor
+	end
+	local response = game:HttpGet(url)
+	return HttpService:JSONDecode(response)
+end
+
+local function HasSecret()
+	local secret = workspace:FindFirstChild(SECRET_INDICATOR_NAME)
+	return secret ~= nil
+end
+
+local function HopToServer()
+	local cursor = nil
+	local servers = {}
+
+	repeat
+		local data = GetServers(cursor)
+		cursor = data.nextPageCursor
+		for _, server in pairs(data.data) do
+			if server.playing > 0 and server.playing < server.maxPlayers and server.id ~= game.JobId then
+				table.insert(servers, server.id)
+			end
+		end
+	until (#servers > 0 or cursor == nil)
+
+	if #servers == 0 then
+		warn("Nenhum servidor disponível para entrar!")
+		statusLabel.Text = "Status: Nenhum servidor disponível!"
+		return
+	end
+
+	local randomServer = servers[math.random(1, #servers)]
+	statusLabel.Text = "[Hop] Indo para o servidor: " .. randomServer
+	TeleportService:TeleportToPlaceInstance(PlaceID, randomServer, player)
+end
+
+btnToggleHop.MouseButton1Click:Connect(function()
+	hopEnabled = not hopEnabled
+	btnToggleHop.Text = "Ativar Hop Automático: " .. (hopEnabled and "ON" or "OFF")
+	statusLabel.Text = "Status: Hop Automático " .. (hopEnabled and "Ativado" or "Desativado")
+end)
+
+btnSetSecret.MouseButton1Click:Connect(function()
+	statusLabel.Text = "Digite o nome do secret no chat!"
+	local connection
+	connection = player.Chatted:Connect(function(msg)
+		SECRET_INDICATOR_NAME = msg
+		statusLabel.Text = "Nome do Secret definido para: " .. msg
+		connection:Disconnect()
+	end)
+end)
+
+btnForceHop.MouseButton1Click:Connect(function()
+	statusLabel.Text = "Forçando Hop..."
+	HopToServer()
+end)
+
+task.spawn(function()
+	while true do
+		task.wait(5)
+		if hopEnabled then
+			if not HasSecret() then
+				statusLabel.Text = "[Hop] Secret não encontrado, pulando servidor..."
+				HopToServer()
+				task.wait(10)
+			else
+				statusLabel.Text = "Secret encontrado! Fique tranquilo."
+			end
+		end
+	end
+end)
