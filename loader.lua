@@ -1,119 +1,151 @@
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local RunService = game:GetService("RunService")
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
 
-local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
-ScreenGui.Name = "AutoStealMenu"
+pcall(function()
+	if LocalPlayer:FindFirstChild("PlayerGui"):FindFirstChild("BrainrotGui") then
+		LocalPlayer.PlayerGui.BrainrotGui:Destroy()
+	end
+end)
 
-local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 200, 0, 100)
-Frame.Position = UDim2.new(0, 20, 0, 100)
-Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-Frame.BorderSizePixel = 0
+local gui = Instance.new("ScreenGui", LocalPlayer:WaitForChild("PlayerGui"))
+gui.Name = "BrainrotGui"
+gui.ResetOnSpawn = false
 
-local UICorner = Instance.new("UICorner", Frame)
-UICorner.CornerRadius = UDim.new(0, 12)
+local config = {
+	AutoSteal = true,
+	AutoHop = true,
+	AutoEscape = true,
+	Noclip = true,
+	Speed = true,
+	ESP = true,
+	TrollMode = false
+}
 
-local Toggle = Instance.new("TextButton", Frame)
-Toggle.Size = UDim2.new(1, -20, 0, 40)
-Toggle.Position = UDim2.new(0, 10, 0, 30)
-Toggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-Toggle.TextColor3 = Color3.new(1,1,1)
-Toggle.Font = Enum.Font.GothamBold
-Toggle.TextSize = 18
-Toggle.Text = "Auto Steal: OFF"
+local teleportData = HttpService:JSONEncode(config)
+queue_on_teleport([[
+	loadstring(game:HttpGet("https://raw.githubusercontent.com/NICKEDX/Brainrot-hop/refs/heads/main/loader.lua"))()
+]])
 
-local noclipConn
-local function SetNoClip(state)
-	if state and not noclipConn then
-		noclipConn = RunService.Stepped:Connect(function()
-			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-				for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-					if part:IsA("BasePart") then
-						part.CanCollide = false
+task.spawn(function()
+	local mt = getrawmetatable(game)
+	local old = mt.__namecall
+	setreadonly(mt, false)
+	mt.__namecall = newcclosure(function(self, ...)
+		local m = getnamecallmethod()
+		if tostring(m) == "Kick" or tostring(self) == "Kick" then return end
+		return old(self, ...)
+	end)
+end)
+
+function GetAllBrainrots()
+	local found = {}
+	for _, obj in ipairs(Workspace:GetDescendants()) do
+		if obj:IsA("Model") and obj.Name:lower():find("brainrot") then
+			table.insert(found, obj)
+		end
+	end
+	return found
+end
+
+function TeleportTo(pos)
+	local char = LocalPlayer.Character
+	if char and char:FindFirstChild("HumanoidRootPart") then
+		char.HumanoidRootPart.CFrame = CFrame.new(pos)
+	end
+end
+
+function Noclip(on)
+	if on then
+		RunService.Stepped:Connect(function()
+			if LocalPlayer.Character then
+				for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
+					if v:IsA("BasePart") and v.CanCollide == true then
+						v.CanCollide = false
 					end
 				end
 			end
 		end)
-	elseif not state and noclipConn then
-		noclipConn:Disconnect()
-		noclipConn = nil
-		if LocalPlayer.Character then
-			for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-				if part:IsA("BasePart") then
-					part.CanCollide = true
-				end
+	end
+end
+
+function SpeedBoost()
+	while config.Speed do
+		if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+			LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 60
+		end
+		wait(0.5)
+	end
+end
+
+function Collect(brain)
+	if brain:FindFirstChild("TouchInterest") then
+		firetouchinterest(LocalPlayer.Character.HumanoidRootPart, brain, 0)
+		firetouchinterest(LocalPlayer.Character.HumanoidRootPart, brain, 1)
+	end
+end
+
+function EscapeToBase()
+	local base = Workspace:FindFirstChild("Base") or Workspace:FindFirstChild("Home")
+	if base then
+		TeleportTo(base.Position)
+	end
+end
+
+function ESPBrainrots()
+	for _, b in pairs(GetAllBrainrots()) do
+		if not b:FindFirstChild("ESP") then
+			local box = Instance.new("BillboardGui", b)
+			box.Name = "ESP"
+			box.Size = UDim2.new(0, 100, 0, 40)
+			box.AlwaysOnTop = true
+			local text = Instance.new("TextLabel", box)
+			text.Size = UDim2.new(1,0,1,0)
+			text.BackgroundTransparency = 1
+			text.Text = "🧠 BRAINROT"
+			text.TextColor3 = Color3.new(1, 0, 0)
+			text.TextStrokeTransparency = 0
+		end
+	end
+end
+
+Noclip(config.Noclip)
+task.spawn(SpeedBoost)
+
+task.spawn(function()
+	while task.wait(1) do
+		if config.ESP then ESPBrainrots() end
+	end
+end)
+
+task.spawn(function()
+	while config.AutoSteal do
+		local brains = GetAllBrainrots()
+		for _, b in pairs(brains) do
+			if b and b:FindFirstChild("PrimaryPart") then
+				TeleportTo(b.PrimaryPart.Position + Vector3.new(0, 3, 0))
+				wait(0.3)
+				Collect(b)
+				wait(0.5)
+				if config.AutoEscape then EscapeToBase() end
+				break
 			end
 		end
+		wait(1)
 	end
-end
+end)
 
-local function TeleportTo(pos)
-	local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-	if root then
-		root.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
-	end
-end
-
-local function GrabBrainrot(brainPart)
-	local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-	if root and brainPart then
-		firetouchinterest(root, brainPart, 0)
-		wait(0.1)
-		firetouchinterest(root, brainPart, 1)
-	end
-end
-
-local function FindBrainrot()
-	for _, obj in pairs(Workspace:GetDescendants()) do
-		if obj:IsA("BasePart") and string.find(string.lower(obj.Name), "brainrot") then
-			return obj
+task.spawn(function()
+	while config.AutoHop do
+		local brains = GetAllBrainrots()
+		if #brains == 0 then
+			TeleportService:Teleport(game.PlaceId)
 		end
-	end
-	return nil
-end
-
-local function FindBase()
-	for _, obj in pairs(Workspace:GetDescendants()) do
-		if obj:IsA("BasePart") and string.find(string.lower(obj.Name), "base") then
-			return obj
-		end
-	end
-	for _, obj in pairs(Workspace:GetChildren()) do
-		if obj:IsA("SpawnLocation") then
-			return obj
-		end
-	end
-	return nil
-end
-
-local AutoStealEnabled = false
-
-Toggle.MouseButton1Click:Connect(function()
-	AutoStealEnabled = not AutoStealEnabled
-	Toggle.Text = "Auto Steal: " .. (AutoStealEnabled and "ON" or "OFF")
-	if AutoStealEnabled then
-		task.spawn(function()
-			while AutoStealEnabled do
-				local brain = FindBrainrot()
-				if brain then
-					SetNoClip(true)
-					TeleportTo(brain.Position)
-					wait(0.2)
-					GrabBrainrot(brain)
-					wait(0.3)
-					local base = FindBase()
-					if base then
-						TeleportTo(base.Position + Vector3.new(0,5,0))
-						wait(0.5)
-					end
-					SetNoClip(false)
-					wait(2)
-				else
-					wait(1)
-				end
-			end
-		end)
+		wait(5)
 	end
 end)
