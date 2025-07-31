@@ -1,268 +1,176 @@
--- STEAL A BRAINROT - HACK COMPLETO, FURTIVO, COM GUI E FUNÇÕES AVANÇADAS
-
--- SERVIÇOS
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
-local RunService = game:GetService("RunService")
-local TeleportService = game:GetService("TeleportService")
+local Teleport = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
+local LocalPlayer = Players.LocalPlayer
+local PlaceId = game.PlaceId
+local Workspace = game:GetService("Workspace")
 
--- GUI
 local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "BrainrotHackUI"
+gui.Name = "SecretHopGUI"
+
+local configFile = "SecretSettings_" .. tostring(LocalPlayer.UserId) .. ".json"
+
+local config = {
+	AutoHop = false
+}
+
+local function saveConfig()
+	if isfile and writefile then
+		writefile(configFile, HttpService:JSONEncode(config))
+	end
+end
+
+local function loadConfig()
+	if isfile and readfile and isfile(configFile) then
+		local success, data = pcall(function()
+			return HttpService:JSONDecode(readfile(configFile))
+		end)
+		if success and type(data) == "table" then
+			config = data
+		end
+	end
+end
+
+loadConfig()
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 300, 0, 400)
-frame.Position = UDim2.new(0, 50, 0, 50)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.Size = UDim2.new(0, 180, 0, 70)
+frame.Position = UDim2.new(0, 20, 0, 150)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
 
-local scrolling = Instance.new("ScrollingFrame", frame)
-scrolling.Size = UDim2.new(1, 0, 1, 0)
-scrolling.CanvasSize = UDim2.new(0, 0, 3, 0)
-scrolling.ScrollBarThickness = 6
-scrolling.BackgroundTransparency = 1
+local title = Instance.new("TextLabel", frame)
+title.Text = "Secret Hop Menu"
+title.Size = UDim2.new(1, 0, 0, 20)
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 16
 
-local UIListLayout = Instance.new("UIListLayout", scrolling)
-UIListLayout.Padding = UDim.new(0, 6)
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+local hopButton = Instance.new("TextButton", frame)
+hopButton.Position = UDim2.new(0, 10, 0, 30)
+hopButton.Size = UDim2.new(0, 160, 0, 30)
+hopButton.BackgroundColor3 = config.AutoHop and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+hopButton.TextColor3 = Color3.new(1, 1, 1)
+hopButton.Font = Enum.Font.SourceSans
+hopButton.TextSize = 16
+hopButton.Text = config.AutoHop and "Auto-Hop: ON ✅" or "Auto-Hop: OFF ❌"
 
--- FUNÇÕES DE GUI
-function createButton(text, callback)
-	local button = Instance.new("TextButton", scrolling)
-	button.Size = UDim2.new(1, -12, 0, 32)
-	button.Position = UDim2.new(0, 6, 0, 0)
-	button.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-	button.TextColor3 = Color3.new(1, 1, 1)
-	button.Text = text
-	button.Font = Enum.Font.GothamBold
-	button.TextSize = 14
-	button.BorderSizePixel = 0
-	button.AutoButtonColor = true
+hopButton.MouseButton1Click:Connect(function()
+	config.AutoHop = not config.AutoHop
+	saveConfig()
+	hopButton.Text = config.AutoHop and "Auto-Hop: ON ✅" or "Auto-Hop: OFF ❌"
+	hopButton.BackgroundColor3 = config.AutoHop and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
+end)
 
-	button.MouseButton1Click:Connect(function()
-		pcall(callback)
-	end)
-
-	return button
-end
-
-function createLabel(text)
-	local label = Instance.new("TextLabel", scrolling)
-	label.Size = UDim2.new(1, -12, 0, 24)
-	label.BackgroundTransparency = 1
-	label.TextColor3 = Color3.new(1, 1, 1)
-	label.Font = Enum.Font.Gotham
-	label.TextSize = 14
-	label.Text = text
-	label.TextXAlignment = Enum.TextXAlignment.Left
-	label.BorderSizePixel = 0
-	label.LayoutOrder = 0
-	return label
-end
-
-function createNotification(text, duration)
-	local msg = Instance.new("TextLabel", gui)
-	msg.Size = UDim2.new(0, 300, 0, 30)
-	msg.Position = UDim2.new(0.5, -150, 0, 10)
-	msg.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-	msg.BorderSizePixel = 0
-	msg.TextColor3 = Color3.new(1, 1, 1)
-	msg.Font = Enum.Font.GothamBold
-	msg.TextSize = 14
-	msg.Text = text
-	msg.AnchorPoint = Vector2.new(0.5, 0)
-	msg.BackgroundTransparency = 0.2
-	game:GetService("Debris"):AddItem(msg, duration or 3)
-end
-
--- CONFIG
-_G.BrainrotSettings = {
-	HopEnabled = true,
-	SecretName = nil,
-	Noclip = false,
-	SpeedBoost = true,
-	AutoScanSecrets = true,
-	AutoGrab = true,
-	AutoEscape = true,
-	ESP = true,
-	AntiKick = true,
-	TrollMode = false,
+-- Lista de nomes secretos (padrões conhecidos)
+local secretNames = {
+   "La Vacca", "Tralaleritos", "Graipuss", "Madundung",
+   "Nuclearo", "Sammyni", "Garama", "Spyderini"
 }
 
--- Noclip
-RunService.Stepped:Connect(function()
-	if _G.BrainrotSettings.Noclip and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-		LocalPlayer.Character.Humanoid:ChangeState(11)
+-- Destaca qualquer Brainrot secreto encontrado
+local function highlightModel(model)
+	pcall(function()
+		for _, obj in pairs(model:GetDescendants()) do
+			if obj:IsA("BasePart") then
+				local highlight = Instance.new("Highlight")
+				highlight.FillColor = Color3.fromRGB(255, 0, 255)  -- Cor rosa para destaque
+				highlight.OutlineColor = Color3.new(1, 1, 1)  -- Contorno branco
+				highlight.Adornee = obj
+				highlight.Parent = obj
+			end
+		end
+	end)
+end
+
+-- Verifica se é secreto
+local function isSecret(brainrot)
+	local name = brainrot.Name:lower()
+	for _, word in ipairs(secretNames) do
+		if name:find(word:lower()) then
+			return true
+		end
 	end
-end)
+	return false
+end
 
-createButton("🚪 Toggle Noclip", function()
-	_G.BrainrotSettings.Noclip = not _G.BrainrotSettings.Noclip
-	createNotification("Noclip: " .. tostring(_G.BrainrotSettings.Noclip), 2)
-end)
-
--- SpeedBoost
-local speedBoosting = false
-createButton("⚡ Ativar Speed Boost", function()
-	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-		LocalPlayer.Character.Humanoid.WalkSpeed = 30
-		speedBoosting = true
-		createNotification("Speed Boost ativado!", 2)
-	end
-end)
-
-createButton("🧍‍♂️ Desativar Speed Boost", function()
-	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-		LocalPlayer.Character.Humanoid.WalkSpeed = 16
-		speedBoosting = false
-		createNotification("Speed Boost desativado.", 2)
-	end
-end)
-
--- Secret Scanner
-function scanSecrets()
-	for _, obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("Tool") and obj.Name:lower():find("secret") then
-			createNotification("🔍 Secret encontrado: " .. obj.Name, 2)
-			if _G.BrainrotSettings.AutoGrab and LocalPlayer.Character and obj:FindFirstChild("Handle") then
-				pcall(function()
-					firetouchinterest(LocalPlayer.Character.HumanoidRootPart, obj.Handle, 0)
-					firetouchinterest(LocalPlayer.Character.HumanoidRootPart, obj.Handle, 1)
-				end)
+-- Scan + teleport + highlight + auto-collect
+local function scanConveyor()
+	for _, v in ipairs(Workspace:GetDescendants()) do
+		if v:IsA("Model") and v.Name:lower():find("brainrot") and v:FindFirstChildWhichIsA("HumanoidRootPart") then
+			if isSecret(v) then
+				highlightModel(v)  -- Destaca o Secret Brainrot
+				task.wait(0.5)
+				local hrp = v:FindFirstChild("HumanoidRootPart")
+				if hrp then
+					-- Teleporta para o Secret
+					LocalPlayer.Character:WaitForChild("HumanoidRootPart").CFrame = hrp.CFrame + Vector3.new(0, 5, 0)
+					
+					-- Auto-Coleta (se possível)
+					local collectButton = v:FindFirstChild("CollectButton")  -- Substitua se necessário
+					if collectButton then
+						collectButton:Click()  -- Coleta automaticamente
+					end
+				end
+				return true, v.Name
 			end
 		end
 	end
+	return false
 end
 
-createButton("🔎 Escanear Secrets", scanSecrets)
-
--- AutoScan Loop
-task.spawn(function()
-	while true do
-		if _G.BrainrotSettings.AutoScanSecrets then
-			scanSecrets()
+-- Pegar servidores públicos
+local function getServerList()
+	local servers, cursor = {}, ""
+	repeat
+		local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Desc&limit=100" .. (cursor ~= "" and "&cursor="..cursor or "")
+		local success, response = pcall(function() return HttpService:JSONDecode(game:HttpGet(url)) end)
+		if success and response and response.data then
+			for _, s in ipairs(response.data) do
+				if s.playing < s.maxPlayers then
+					table.insert(servers, s.id)
+				end
+			end
+			cursor = response.nextPageCursor
+		else
+			break
 		end
-		task.wait(5)
-	end
-end)
+	until not cursor
+	return servers
+end
 
--- ESCAPE
-function escapeBrainrot()
-	for _, v in pairs(workspace:GetDescendants()) do
-		if v:IsA("Part") and v.Name:lower():find("escape") then
-			LocalPlayer.Character.HumanoidRootPart.CFrame = v.CFrame + Vector3.new(0, 3, 0)
-			createNotification("🚪 Escape usado!", 2)
+-- Trocar de servidor
+local function hopServer()
+	local list = getServerList()
+	for _, id in ipairs(list) do
+		if id ~= game.JobId then
+			Teleport:TeleportToPlaceInstance(PlaceId, id)
+			wait(5)
 			break
 		end
 	end
 end
 
-createButton("🏃 Auto Escape", escapeBrainrot)
-
--- ESP
-function createESP(part, text)
-	local billboard = Instance.new("BillboardGui", part)
-	billboard.Adornee = part
-	billboard.Size = UDim2.new(0, 100, 0, 40)
-	billboard.StudsOffset = Vector3.new(0, 2, 0)
-	billboard.AlwaysOnTop = true
-
-	local label = Instance.new("TextLabel", billboard)
-	label.Size = UDim2.new(1, 0, 1, 0)
-	label.BackgroundTransparency = 1
-	label.TextColor3 = Color3.new(1, 1, 0)
-	label.Text = text
-	label.TextScaled = true
-	label.Font = Enum.Font.GothamBold
-end
-
+-- Loop principal
 task.spawn(function()
 	while true do
-		if _G.BrainrotSettings.ESP then
-			for _, obj in ipairs(workspace:GetDescendants()) do
-				if obj:IsA("Tool") and obj:FindFirstChild("Handle") and not obj:FindFirstChild("ESP") then
-					createESP(obj.Handle, obj.Name)
-					local tag = Instance.new("BoolValue", obj)
-					tag.Name = "ESP"
-				end
+		wait(3)
+		if config.AutoHop then
+			local found, name = scanConveyor()
+			if found then
+				print("🧠 Secret encontrado: "..name)
+				config.AutoHop = false
+				saveConfig()
+				hopButton.Text = "Auto-Hop: OFF ❌"
+				hopButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
+				break
+			else
+				print("Nenhum Secret. Hoppando...")
+				hopServer()
 			end
 		end
-		task.wait(2)
 	end
 end)
-
--- Caminho
-local recordedPath = {}
-local recording = false
-
-function startRecording()
-	recordedPath = {}
-	recording = true
-	createNotification("📼 Gravando caminho...", 3)
-	while recording do
-		local pos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-		if pos then
-			table.insert(recordedPath, pos.Position)
-		end
-		task.wait(1)
-	end
-end
-
-function stopRecording()
-	recording = false
-	createNotification("⏹️ Gravação encerrada.", 3)
-end
-
-function replayPath()
-	if #recordedPath == 0 then
-		createNotification("⚠️ Nenhum caminho gravado!", 3)
-		return
-	end
-	createNotification("🔁 Repetindo caminho...", 3)
-	for _, pos in ipairs(recordedPath) do
-		local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-		if hrp then
-			hrp.CFrame = CFrame.new(pos)
-			task.wait(0.4)
-		end
-	end
-end
-
-createButton("🎬 Iniciar Gravação Caminho", startRecording)
-createButton("⏹️ Parar Gravação", stopRecording)
-createButton("🔁 Repetir Caminho", replayPath)
-
--- Contador de Secrets
-local secretCountLabel = createLabel("Secrets coletados: 0")
-local collectedSecrets = {}
-
-function updateSecretCounter()
-	local count = 0
-	for _, obj in ipairs(LocalPlayer.Backpack:GetChildren()) do
-		if obj:IsA("Tool") and obj.Name:lower():find("secret") then
-			if not collectedSecrets[obj.Name] then
-				collectedSecrets[obj.Name] = true
-				count = count + 1
-			end
-		end
-	end
-	secretCountLabel.Text = "Secrets coletados: " .. tostring(count)
-end
-
-RunService.RenderStepped:Connect(updateSecretCounter)
-
--- Ajuste Scroll automático
-function fixGuiScroll()
-	local absSize = UIListLayout.AbsoluteContentSize
-	scrolling.CanvasSize = UDim2.new(0, 0, 0, absSize.Y + 20)
-end
-
-scrolling.ChildAdded:Connect(fixGuiScroll)
-scrolling.ChildRemoved:Connect(fixGuiScroll)
-
--- Aviso final
-createNotification("✅ Script completo carregado com sucesso!", 4)
