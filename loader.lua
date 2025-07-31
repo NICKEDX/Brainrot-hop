@@ -1,33 +1,29 @@
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
 
-local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "AutoStealBrainrot"
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+ScreenGui.Name = "AutoStealMenu"
 
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 200, 0, 130)
-frame.Position = UDim2.new(0, 20, 0, 200)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.BorderSizePixel = 0
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 200, 0, 100)
+Frame.Position = UDim2.new(0, 20, 0, 100)
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Frame.BorderSizePixel = 0
 
-local toggle = Instance.new("TextButton", frame)
-toggle.Size = UDim2.new(1, -20, 0, 30)
-toggle.Position = UDim2.new(0, 10, 0, 10)
-toggle.Text = "Auto Steal: OFF"
-toggle.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-toggle.TextColor3 = Color3.new(1, 1, 1)
+local UICorner = Instance.new("UICorner", Frame)
+UICorner.CornerRadius = UDim.new(0, 12)
 
-local dropdown = Instance.new("TextBox", frame)
-dropdown.Size = UDim2.new(1, -20, 0, 30)
-dropdown.Position = UDim2.new(0, 10, 0, 50)
-dropdown.PlaceholderText = "Nome exato do Brainrot"
-dropdown.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-dropdown.TextColor3 = Color3.new(1, 1, 1)
+local Toggle = Instance.new("TextButton", Frame)
+Toggle.Size = UDim2.new(1, -20, 0, 40)
+Toggle.Position = UDim2.new(0, 10, 0, 30)
+Toggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Toggle.TextColor3 = Color3.new(1,1,1)
+Toggle.Font = Enum.Font.GothamBold
+Toggle.TextSize = 18
+Toggle.Text = "Auto Steal: OFF"
 
--- NoClip system
 local noclipConn
 local function SetNoClip(state)
 	if state and not noclipConn then
@@ -43,9 +39,11 @@ local function SetNoClip(state)
 	elseif not state and noclipConn then
 		noclipConn:Disconnect()
 		noclipConn = nil
-		for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = true
+		if LocalPlayer.Character then
+			for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+				if part:IsA("BasePart") then
+					part.CanCollide = true
+				end
 			end
 		end
 	end
@@ -54,58 +52,68 @@ end
 local function TeleportTo(pos)
 	local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
 	if root then
-		root.CFrame = CFrame.new(pos)
+		root.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
 	end
 end
 
-local function GrabBrainrot(brain)
+local function GrabBrainrot(brainPart)
 	local root = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-	if root then
-		firetouchinterest(root, brain, 0)
+	if root and brainPart then
+		firetouchinterest(root, brainPart, 0)
 		wait(0.1)
-		firetouchinterest(root, brain, 1)
+		firetouchinterest(root, brainPart, 1)
 	end
 end
 
-local function FindBrainrotByName(name)
+local function FindBrainrot()
 	for _, obj in pairs(Workspace:GetDescendants()) do
-		if obj:IsA("BasePart") and string.lower(obj.Name) == string.lower(name) then
+		if obj:IsA("BasePart") and string.find(string.lower(obj.Name), "brainrot") then
 			return obj
 		end
 	end
+	return nil
 end
 
-local function AutoSteal(name)
-	local brain = FindBrainrotByName(name)
-	if brain then
-		SetNoClip(true)
-		wait(0.1)
-		TeleportTo(brain.Position + Vector3.new(0, 2, 0))
-		wait(0.2)
-		GrabBrainrot(brain)
-		wait(0.3)
-		local base = Workspace:FindFirstChild("Base") or Workspace:FindFirstChildWhichIsA("SpawnLocation")
-		if base then
-			TeleportTo(base.Position + Vector3.new(0, 5, 0))
+local function FindBase()
+	for _, obj in pairs(Workspace:GetDescendants()) do
+		if obj:IsA("BasePart") and string.find(string.lower(obj.Name), "base") then
+			return obj
 		end
-		wait(0.5)
-		SetNoClip(false)
 	end
+	for _, obj in pairs(Workspace:GetChildren()) do
+		if obj:IsA("SpawnLocation") then
+			return obj
+		end
+	end
+	return nil
 end
 
--- Toggle behavior
-local enabled = false
-toggle.MouseButton1Click:Connect(function()
-	enabled = not enabled
-	toggle.Text = enabled and "Auto Steal: ON" or "Auto Steal: OFF"
-end)
+local AutoStealEnabled = false
 
--- Loop
-task.spawn(function()
-	while true do
-		if enabled and dropdown.Text ~= "" then
-			AutoSteal(dropdown.Text)
-		end
-		wait(2)
+Toggle.MouseButton1Click:Connect(function()
+	AutoStealEnabled = not AutoStealEnabled
+	Toggle.Text = "Auto Steal: " .. (AutoStealEnabled and "ON" or "OFF")
+	if AutoStealEnabled then
+		task.spawn(function()
+			while AutoStealEnabled do
+				local brain = FindBrainrot()
+				if brain then
+					SetNoClip(true)
+					TeleportTo(brain.Position)
+					wait(0.2)
+					GrabBrainrot(brain)
+					wait(0.3)
+					local base = FindBase()
+					if base then
+						TeleportTo(base.Position + Vector3.new(0,5,0))
+						wait(0.5)
+					end
+					SetNoClip(false)
+					wait(2)
+				else
+					wait(1)
+				end
+			end
+		end)
 	end
 end)
