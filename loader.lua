@@ -1,176 +1,64 @@
-local Players = game:GetService("Players")
-local Teleport = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
-local LocalPlayer = Players.LocalPlayer
-local PlaceId = game.PlaceId
-local Workspace = game:GetService("Workspace")
 
-local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "SecretHopGUI"
+-- SCRIPT COMPLETO HACK FURTIVO PARA 'STEAL A BRAINROT' -- TODAS AS FUNÇÕES ATIVADAS POR PADRÃO, SISTEMA DE SALVAMENTO ENTRE SERVIDORES -- INCLUI: AUTOHOP, AUTOGRAB, AUTOESCAPE, SPEED, NOCLIP, INVISIBILIDADE, ESP, ETC -- NÃO INCLUI LOADER, É PARA USO DIRETO
 
-local configFile = "SecretSettings_" .. tostring(LocalPlayer.UserId) .. ".json"
+-- [ INÍCIO: VARIÁVEIS E GUI ] local Players = game:GetService("Players") local LocalPlayer = Players.LocalPlayer local Mouse = LocalPlayer:GetMouse() local RunService = game:GetService("RunService") local TeleportService = game:GetService("TeleportService") local HttpService = game:GetService("HttpService") local Workspace = game:GetService("Workspace") local TweenService = game:GetService("TweenService")
 
-local config = {
-	AutoHop = false
-}
+-- GUI segura local gui = Instance.new("ScreenGui") gui.Name = "BrainrotStealthGUI" gui.ResetOnSpawn = false gui.Parent = game:GetService("CoreGui")
 
-local function saveConfig()
-	if isfile and writefile then
-		writefile(configFile, HttpService:JSONEncode(config))
-	end
-end
+local frame = Instance.new("Frame") frame.Size = UDim2.new(0, 300, 0, 350) frame.Position = UDim2.new(0.5, -150, 0.5, -175) frame.BackgroundTransparency = 0.2 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20) frame.BorderSizePixel = 0 frame.Active = true frame.Draggable = true frame.Parent = gui
 
-local function loadConfig()
-	if isfile and readfile and isfile(configFile) then
-		local success, data = pcall(function()
-			return HttpService:JSONDecode(readfile(configFile))
-		end)
-		if success and type(data) == "table" then
-			config = data
-		end
-	end
-end
+local scrolling = Instance.new("ScrollingFrame") scrolling.Size = UDim2.new(1, 0, 1, 0) scrolling.CanvasSize = UDim2.new(0, 0, 2, 0) scrolling.ScrollBarThickness = 8 scrolling.BackgroundTransparency = 1 scrolling.Parent = frame
 
-loadConfig()
+local function newButton(name, callback) local btn = Instance.new("TextButton") btn.Size = UDim2.new(1, -10, 0, 30) btn.Position = UDim2.new(0, 5, 0, #scrolling:GetChildren() * 35) btn.Text = name btn.TextColor3 = Color3.new(1, 1, 1) btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40) btn.BorderSizePixel = 0 btn.Font = Enum.Font.SourceSansBold btn.TextSize = 18 btn.MouseButton1Click:Connect(callback) btn.Parent = scrolling end
 
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0, 180, 0, 70)
-frame.Position = UDim2.new(0, 20, 0, 150)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Draggable = true
+-- [ SALVAMENTO DE CONFIGURAÇÃO ENTRE SERVIDORES ] getgenv().AutoHop = true getgenv().AutoGrab = true getgenv().AutoEscape = true getgenv().SpeedHack = true getgenv().Noclip = true getgenv().Invisible = true getgenv().ESP = true getgenv().SavePaths = true
 
-local title = Instance.new("TextLabel", frame)
-title.Text = "Secret Hop Menu"
-title.Size = UDim2.new(1, 0, 0, 20)
-title.BackgroundTransparency = 1
-title.TextColor3 = Color3.new(1, 1, 1)
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 16
+queue_on_teleport([[loadstring(game:HttpGet("https://raw.githubusercontent.com/seuscript/brainrot.lua"))()]])
 
-local hopButton = Instance.new("TextButton", frame)
-hopButton.Position = UDim2.new(0, 10, 0, 30)
-hopButton.Size = UDim2.new(0, 160, 0, 30)
-hopButton.BackgroundColor3 = config.AutoHop and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-hopButton.TextColor3 = Color3.new(1, 1, 1)
-hopButton.Font = Enum.Font.SourceSans
-hopButton.TextSize = 16
-hopButton.Text = config.AutoHop and "Auto-Hop: ON ✅" or "Auto-Hop: OFF ❌"
+-- [ FUNÇÕES DE HACK ]
 
-hopButton.MouseButton1Click:Connect(function()
-	config.AutoHop = not config.AutoHop
-	saveConfig()
-	hopButton.Text = config.AutoHop and "Auto-Hop: ON ✅" or "Auto-Hop: OFF ❌"
-	hopButton.BackgroundColor3 = config.AutoHop and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(150, 0, 0)
-end)
+-- Noclip RunService.Stepped:Connect(function() if getgenv().Noclip then for _, v in pairs(LocalPlayer.Character:GetDescendants()) do if v:IsA("BasePart") and v.CanCollide == true then v.CanCollide = false end end end end)
 
--- Lista de nomes secretos (padrões conhecidos)
-local secretNames = {
-   "La Vacca", "Tralaleritos", "Graipuss", "Madundung",
-   "Nuclearo", "Sammyni", "Garama", "Spyderini"
-}
+-- Speed boost local speed = 50 RunService.RenderStepped:Connect(function() if getgenv().SpeedHack and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.WalkSpeed = speed end end)
 
--- Destaca qualquer Brainrot secreto encontrado
-local function highlightModel(model)
-	pcall(function()
-		for _, obj in pairs(model:GetDescendants()) do
-			if obj:IsA("BasePart") then
-				local highlight = Instance.new("Highlight")
-				highlight.FillColor = Color3.fromRGB(255, 0, 255)  -- Cor rosa para destaque
-				highlight.OutlineColor = Color3.new(1, 1, 1)  -- Contorno branco
-				highlight.Adornee = obj
-				highlight.Parent = obj
-			end
-		end
-	end)
-end
+-- Invisibilidade local function invis() if getgenv().Invisible and LocalPlayer.Character then for _, part in pairs(LocalPlayer.Character:GetDescendants()) do if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then part.Transparency = 1 if part:FindFirstChild("face") then part.face.Transparency = 1 end end end end end invis()
 
--- Verifica se é secreto
-local function isSecret(brainrot)
-	local name = brainrot.Name:lower()
-	for _, word in ipairs(secretNames) do
-		if name:find(word:lower()) then
-			return true
-		end
-	end
-	return false
-end
+-- ESP local function createESP(target, color) if target:FindFirstChild("ESP") then return end local box = Instance.new("BoxHandleAdornment") box.Name = "ESP" box.Size = target.Size + Vector3.new(0.1, 0.1, 0.1) box.Adornee = target box.Color3 = color box.AlwaysOnTop = true box.ZIndex = 10 box.Transparency = 0.4 box.Parent = target end
 
--- Scan + teleport + highlight + auto-collect
-local function scanConveyor()
-	for _, v in ipairs(Workspace:GetDescendants()) do
-		if v:IsA("Model") and v.Name:lower():find("brainrot") and v:FindFirstChildWhichIsA("HumanoidRootPart") then
-			if isSecret(v) then
-				highlightModel(v)  -- Destaca o Secret Brainrot
-				task.wait(0.5)
-				local hrp = v:FindFirstChild("HumanoidRootPart")
-				if hrp then
-					-- Teleporta para o Secret
-					LocalPlayer.Character:WaitForChild("HumanoidRootPart").CFrame = hrp.CFrame + Vector3.new(0, 5, 0)
-					
-					-- Auto-Coleta (se possível)
-					local collectButton = v:FindFirstChild("CollectButton")  -- Substitua se necessário
-					if collectButton then
-						collectButton:Click()  -- Coleta automaticamente
-					end
-				end
-				return true, v.Name
-			end
-		end
-	end
-	return false
-end
+RunService.RenderStepped:Connect(function() if getgenv().ESP then for _, v in pairs(Workspace:GetDescendants()) do if v:IsA("Part") and v.Name == "SecretBrainrot" then createESP(v, Color3.new(0, 1, 0)) elseif v:IsA("Model") and Players:GetPlayerFromCharacter(v) and v ~= LocalPlayer.Character then if v:FindFirstChild("HumanoidRootPart") then createESP(v.HumanoidRootPart, Color3.new(1, 0, 0)) end end end end end)
 
--- Pegar servidores públicos
-local function getServerList()
-	local servers, cursor = {}, ""
-	repeat
-		local url = "https://games.roblox.com/v1/games/"..PlaceId.."/servers/Public?sortOrder=Desc&limit=100" .. (cursor ~= "" and "&cursor="..cursor or "")
-		local success, response = pcall(function() return HttpService:JSONDecode(game:HttpGet(url)) end)
-		if success and response and response.data then
-			for _, s in ipairs(response.data) do
-				if s.playing < s.maxPlayers then
-					table.insert(servers, s.id)
-				end
-			end
-			cursor = response.nextPageCursor
-		else
-			break
-		end
-	until not cursor
-	return servers
-end
+-- AutoHop local function hopServers() local servers = {} local req = syn and syn.request or http_request or request local success, result = pcall(function() return req({ Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100" }) end) if success then local data = HttpService:JSONDecode(result.Body) for _, v in pairs(data.data) do if v.playing < v.maxPlayers then table.insert(servers, v.id) end end if #servers > 0 then TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)]) end end end
 
--- Trocar de servidor
-local function hopServer()
-	local list = getServerList()
-	for _, id in ipairs(list) do
-		if id ~= game.JobId then
-			Teleport:TeleportToPlaceInstance(PlaceId, id)
-			wait(5)
-			break
-		end
-	end
-end
+-- AutoGrab + AutoEscape RunService.Heartbeat:Connect(function() if getgenv().AutoGrab then for _, obj in pairs(Workspace:GetDescendants()) do if obj:IsA("Part") and obj.Name == "SecretBrainrot" then LocalPlayer.Character.HumanoidRootPart.CFrame = obj.CFrame wait(0.5) if getgenv().AutoEscape then for _, v in pairs(Workspace:GetChildren()) do if v:IsA("Part") and v.Name == "Escape" then LocalPlayer.Character.HumanoidRootPart.CFrame = v.CFrame wait(0.5) end end end if getgenv().AutoHop then hopServers() end end end end end)
 
--- Loop principal
-task.spawn(function()
-	while true do
-		wait(3)
-		if config.AutoHop then
-			local found, name = scanConveyor()
-			if found then
-				print("🧠 Secret encontrado: "..name)
-				config.AutoHop = false
-				saveConfig()
-				hopButton.Text = "Auto-Hop: OFF ❌"
-				hopButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-				break
-			else
-				print("Nenhum Secret. Hoppando...")
-				hopServer()
-			end
-		end
-	end
-end)
+-- [ FIM DO SCRIPT COMPLETO HACK FURTIVO ]
+
+
+local frame = Instance.new("Frame") frame.Size = UDim2.new(0, 300, 0, 350) frame.Position = UDim2.new(0.5, -150, 0.5, -175) frame.BackgroundTransparency = 0.2 frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20) frame.BorderSizePixel = 0 frame.Active = true frame.Draggable = true frame.Parent = gui
+
+local scrolling = Instance.new("ScrollingFrame") scrolling.Size = UDim2.new(1, 0, 1, 0) scrolling.CanvasSize = UDim2.new(0, 0, 2, 0) scrolling.ScrollBarThickness = 8 scrolling.BackgroundTransparency = 1 scrolling.Parent = frame
+
+local function newButton(name, callback) local btn = Instance.new("TextButton") btn.Size = UDim2.new(1, -10, 0, 30) btn.Position = UDim2.new(0, 5, 0, #scrolling:GetChildren() * 35) btn.Text = name btn.TextColor3 = Color3.new(1, 1, 1) btn.BackgroundColor3 = Color3.fromRGB(40, 40, 40) btn.BorderSizePixel = 0 btn.Font = Enum.Font.SourceSansBold btn.TextSize = 18 btn.MouseButton1Click:Connect(callback) btn.Parent = scrolling end
+
+-- [ SALVAMENTO DE CONFIGURAÇÃO ENTRE SERVIDORES ] getgenv().AutoHop = true getgenv().AutoGrab = true getgenv().AutoEscape = true getgenv().SpeedHack = true getgenv().Noclip = true getgenv().Invisible = true getgenv().ESP = true getgenv().SavePaths = true
+
+queue_on_teleport([[loadstring(game:HttpGet("https://raw.githubusercontent.com/seuscript/brainrot.lua"))()]])
+
+-- [ FUNÇÕES DE HACK ]
+
+-- Noclip RunService.Stepped:Connect(function() if getgenv().Noclip then for _, v in pairs(LocalPlayer.Character:GetDescendants()) do if v:IsA("BasePart") and v.CanCollide == true then v.CanCollide = false end end end end)
+
+-- Speed boost local speed = 50 RunService.RenderStepped:Connect(function() if getgenv().SpeedHack and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.WalkSpeed = speed end end)
+
+-- Invisibilidade local function invis() if getgenv().Invisible and LocalPlayer.Character then for _, part in pairs(LocalPlayer.Character:GetDescendants()) do if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then part.Transparency = 1 if part:FindFirstChild("face") then part.face.Transparency = 1 end end end end end invis()
+
+-- ESP local function createESP(target, color) if target:FindFirstChild("ESP") then return end local box = Instance.new("BoxHandleAdornment") box.Name = "ESP" box.Size = target.Size + Vector3.new(0.1, 0.1, 0.1) box.Adornee = target box.Color3 = color box.AlwaysOnTop = true box.ZIndex = 10 box.Transparency = 0.4 box.Parent = target end
+
+RunService.RenderStepped:Connect(function() if getgenv().ESP then for _, v in pairs(Workspace:GetDescendants()) do if v:IsA("Part") and v.Name == "SecretBrainrot" then createESP(v, Color3.new(0, 1, 0)) elseif v:IsA("Model") and Players:GetPlayerFromCharacter(v) and v ~= LocalPlayer.Character then if v:FindFirstChild("HumanoidRootPart") then createESP(v.HumanoidRootPart, Color3.new(1, 0, 0)) end end end end end)
+
+-- AutoHop local function hopServers() local servers = {} local req = syn and syn.request or http_request or request local success, result = pcall(function() return req({ Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100" }) end) if success then local data = HttpService:JSONDecode(result.Body) for _, v in pairs(data.data) do if v.playing < v.maxPlayers then table.insert(servers, v.id) end end if #servers > 0 then TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)]) end end end
+
+-- AutoGrab + AutoEscape RunService.Heartbeat:Connect(function() if getgenv().AutoGrab then for _, obj in pairs(Workspace:GetDescendants()) do if obj:IsA("Part") and obj.Name == "SecretBrainrot" then LocalPlayer.Character.HumanoidRootPart.CFrame = obj.CFrame wait(0.5) if getgenv().AutoEscape then for _, v in pairs(Workspace:GetChildren()) do if v:IsA("Part") and v.Name == "Escape" then LocalPlayer.Character.HumanoidRootPart.CFrame = v.CFrame wait(0.5) end end end if getgenv().AutoHop then hopServers() end end end end end)
+
+-- [ FIM DO SCRIPT COMPLETO HACK FURTIVO ]
+
