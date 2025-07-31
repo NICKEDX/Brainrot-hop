@@ -1,98 +1,33 @@
+local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/main/source.lua"))()
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 
-local ScreenGui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
-ScreenGui.Name = "SimpleMenu"
+local Window = Fluent:CreateWindow({
+    Title = "Steal a Brainrot",
+    SubTitle = "Furtivo Exploit",
+    TabWidth = 120,
+    Size = UDim2.fromOffset(520, 460),
+    Acrylic = true,
+    Theme = "Amethyst",
+    MinimizeKey = Enum.KeyCode.RightControl
+})
 
-local Frame = Instance.new("Frame", ScreenGui)
-Frame.Size = UDim2.new(0, 200, 0, 150)
-Frame.Position = UDim2.new(0, 10, 0, 10)
-Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Frame.BorderSizePixel = 0
-Frame.Active = true
-Frame.Draggable = true
-
-local UIListLayout = Instance.new("UIListLayout", Frame)
-UIListLayout.Padding = UDim.new(0, 5)
-UIListLayout.FillDirection = Enum.FillDirection.Vertical
-UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-local function createToggle(text, default, callback)
-    local toggleFrame = Instance.new("Frame", Frame)
-    toggleFrame.Size = UDim2.new(1, -10, 0, 40)
-    toggleFrame.BackgroundTransparency = 1
-    
-    local label = Instance.new("TextLabel", toggleFrame)
-    label.Text = text
-    label.Size = UDim2.new(0.6, 0, 1, 0)
-    label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(255, 255, 255)
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Font = Enum.Font.SourceSansBold
-    label.TextScaled = true
-    
-    local button = Instance.new("TextButton", toggleFrame)
-    button.Size = UDim2.new(0.3, 0, 0.7, 0)
-    button.Position = UDim2.new(0.65, 0, 0.15, 0)
-    button.Text = default and "ON" or "OFF"
-    button.BackgroundColor3 = default and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(150, 0, 0)
-    button.TextColor3 = Color3.new(1,1,1)
-    button.Font = Enum.Font.SourceSansBold
-    button.TextScaled = true
-    
-    local enabled = default
-    
-    button.MouseButton1Click:Connect(function()
-        enabled = not enabled
-        button.Text = enabled and "ON" or "OFF"
-        button.BackgroundColor3 = enabled and Color3.fromRGB(0, 200, 0) or Color3.fromRGB(150, 0, 0)
-        callback(enabled)
-    end)
-    
-    return toggleFrame
-end
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "🌌" }),
+    Server = Window:AddTab({ Title = "ServerHop", Icon = "🚪" }),
+}
 
 local Config = {
     AutoSteal = true,
+    SpeedBoost = true,
+    Noclip = true,
     AutoHop = true,
+    ServerHopSecret = true,
+    ServerHopDelay = 4,
 }
-
-createToggle("Auto Steal", Config.AutoSteal, function(value)
-    Config.AutoSteal = value
-end)
-
-createToggle("Auto Hop (Secret)", Config.AutoHop, function(value)
-    Config.AutoHop = value
-end)
-
--- Função para teleporte e roubo simples
-local function TeleportTo(pos)
-    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then hrp.CFrame = pos + Vector3.new(0,3,0) end
-end
-
-local function GetSecrets()
-    local secrets = {}
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj.Name:lower():find("brainrot") and obj.Name:lower():find("secret") then
-            table.insert(secrets, obj)
-        end
-    end
-    return secrets
-end
-
-local function GrabClosestSecret()
-    local secrets = GetSecrets()
-    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        table.sort(secrets, function(a,b)
-            return (a:GetModelCFrame().Position - hrp.Position).Magnitude < (b:GetModelCFrame().Position - hrp.Position).Magnitude
-        end)
-        return secrets[1]
-    end
-end
 
 local function GetMyBase()
     for _, plot in pairs(workspace.Plots:GetChildren()) do
@@ -102,46 +37,95 @@ local function GetMyBase()
     end
 end
 
--- Auto Steal Loop
-spawn(function()
-    while true do
-        wait(0.15)
+local function TeleportTo(pos)
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then hrp.CFrame = pos + Vector3.new(0, 3, 0) end
+end
+
+local function GetSecrets()
+    local targets = {}
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj:FindFirstChildOfClass("Part") and obj.Name:lower():find("brainrot") and obj.Name:lower():find("secret") then
+            table.insert(targets, obj)
+        end
+    end
+    return targets
+end
+
+local function GrabClosestSecret()
+    local secrets = GetSecrets()
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        table.sort(secrets, function(a, b)
+            return (a:GetModelCFrame().Position - hrp.Position).Magnitude < (b:GetModelCFrame().Position - hrp.Position).Magnitude
+        end)
+        return secrets[1]
+    end
+end
+
+local function AutoStealLoop()
+    while task.wait(0.15) do
         if Config.AutoSteal then
             local target = GrabClosestSecret()
             if target then
                 TeleportTo(target:GetModelCFrame())
-                wait(0.3)
-                local base = GetMyBase()
-                if base then
-                    TeleportTo(base.PlotBlock.Main.CFrame)
-                end
+                task.wait(0.3)
+                TeleportTo(GetMyBase().PlotBlock.Main.CFrame)
             end
         end
     end
+end
+
+local function SpeedBoostLoop()
+    RunService.Heartbeat:Connect(function(dt)
+        if Config.SpeedBoost and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local hum = LocalPlayer.Character.Humanoid
+            if hum.MoveDirection.Magnitude > 0 then
+                LocalPlayer.Character:TranslateBy(hum.MoveDirection * 3 * dt * 10)
+            end
+        end
+    end)
+end
+
+local function ServerHop()
+    while Config.ServerHopSecret do
+        if #GetSecrets() == 0 then
+            local servers = game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100")
+            local data = HttpService:JSONDecode(servers)
+            for _, s in pairs(data.data) do
+                if s.playing < s.maxPlayers and s.id ~= game.JobId then
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id)
+                    return
+                end
+            end
+        end
+        task.wait(Config.ServerHopDelay)
+    end
+end
+
+Tabs.Main:AddToggle("AutoSteal", {Text = "Auto Steal Secret", Default = true}):OnChanged(function(v)
+    Config.AutoSteal = v
 end)
 
--- Auto Hop Loop (simples)
-spawn(function()
-    local TeleportService = game:GetService("TeleportService")
-    local HttpService = game:GetService("HttpService")
-    while true do
-        wait(4)
-        if Config.AutoHop then
-            local secrets = GetSecrets()
-            if #secrets == 0 then
-                local success, servers = pcall(function()
-                    local res = game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100")
-                    return HttpService:JSONDecode(res)
-                end)
-                if success and servers and servers.data then
-                    for _, server in pairs(servers.data) do
-                        if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                            TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id)
-                            break
-                        end
-                    end
-                end
-            end
-        end
-    end
+Tabs.Main:AddToggle("SpeedBoost", {Text = "Speed Boost", Default = true}):OnChanged(function(v)
+    Config.SpeedBoost = v
 end)
+
+Tabs.Server:AddToggle("ServerHopSecret", {Text = "Auto Server Hop (Secret)", Default = true}):OnChanged(function(v)
+    Config.ServerHopSecret = v
+end)
+
+Tabs.Server:AddSlider("Delay", {
+    Text = "Delay entre ServerHops",
+    Min = 2,
+    Max = 15,
+    Default = 4,
+    Rounding = 1,
+    Compact = false,
+}):OnChanged(function(v)
+    Config.ServerHopDelay = v
+end)
+
+task.spawn(AutoStealLoop)
+task.spawn(SpeedBoostLoop)
+task.spawn(ServerHop)
