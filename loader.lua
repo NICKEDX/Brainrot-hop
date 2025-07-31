@@ -1,140 +1,366 @@
-local uis = game:GetService("UserInputService")
-local ts = game:GetService("TweenService")
-local rs = game:GetService("RunService")
 local Players = game:GetService("Players")
-local lp = Players.LocalPlayer
-local char = lp.Character or lp.CharacterAdded:Wait()
-local hrp = char:WaitForChild("HumanoidRootPart")
-local configs = {}
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 
-local screenGui = Instance.new("ScreenGui", game.CoreGui)
-screenGui.Name = "BrainrotGUI"
-local main = Instance.new("Frame", screenGui)
-main.Size = UDim2.new(0, 300, 0, 400)
-main.Position = UDim2.new(0, 50, 0, 50)
-main.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-main.Active = true
-main.Draggable = true
+local Config = {
+    AutoHop = true,
+    SpeedBoost = true,
+    Noclip = true,
+    AutoEscape = true,
+    AutoBrainrot = true,
+    AutoSecrets = true,
+    ESP = true,
+    BaseProtection = true,
+    TrollMode = false,
+}
 
-local scroll = Instance.new("ScrollingFrame", main)
-scroll.Size = UDim2.new(1, 0, 1, 0)
-scroll.CanvasSize = UDim2.new(0, 0, 10, 0)
-scroll.ScrollBarThickness = 4
-scroll.BackgroundTransparency = 1
-scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+local SaveKey = "StealBrainrotConfig_"..tostring(LocalPlayer.UserId)
 
-local list = Instance.new("UIListLayout", scroll)
-list.Padding = UDim.new(0, 5)
-list.SortOrder = Enum.SortOrder.LayoutOrder
-
-function createToggle(name, default, callback)
-    local toggle = Instance.new("TextButton", scroll)
-    toggle.Size = UDim2.new(1, -10, 0, 30)
-    toggle.BackgroundColor3 = default and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(100, 100, 100)
-    toggle.Text = "[OFF] " .. name
-    toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-    toggle.Font = Enum.Font.Gotham
-    toggle.TextSize = 14
-
-    local state = default
-    if default then
-        toggle.Text = "[ON] " .. name
-        toggle.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
-    end
-
-    toggle.MouseButton1Click:Connect(function()
-        state = not state
-        toggle.Text = state and "[ON] " .. name or "[OFF] " .. name
-        toggle.BackgroundColor3 = state and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(100, 100, 100)
-        callback(state)
-        configs[name] = state
+local function SaveConfig()
+    pcall(function()
+        local json = HttpService:JSONEncode(Config)
+        if writefile then
+            writefile(SaveKey..".json", json)
+        end
     end)
-
-    configs[name] = default
 end
 
-function noclipFunc(state)
-    rs:UnbindFromRenderStep("noclip")
+local function LoadConfig()
+    pcall(function()
+        if isfile and isfile(SaveKey..".json") then
+            local content = readfile(SaveKey..".json")
+            local decoded = HttpService:JSONDecode(content)
+            for k,v in pairs(decoded) do
+                Config[k] = v
+            end
+        end
+    end)
+end
+
+LoadConfig()
+
+local Toggles = {}
+
+function CreateToggle(name, default)
+    Toggles[name] = default
+    return {
+        Get = function() return Toggles[name] end,
+        Set = function(val)
+            Toggles[name] = val
+            Config[name] = val
+            SaveConfig()
+        end
+    }
+endlocal RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+
+local toggles = {
+    AutoHop = true,
+    SpeedBoost = true,
+    Noclip = true,
+    AutoEscape = true,
+}
+
+local speedMultiplier = 1.8
+local defaultWalkSpeed = 16
+local noclipConnection
+
+local function AutoHop()
+    if not toggles.AutoHop then return end
+    if Humanoid.FloorMaterial ~= Enum.Material.Air and Humanoid:GetState() == Enum.HumanoidStateType.Running then
+        Humanoid.Jump = true
+    end
+end
+
+local function SpeedBoost()
+    if toggles.SpeedBoost then
+        Humanoid.WalkSpeed = defaultWalkSpeed * speedMultiplier
+    else
+        Humanoid.WalkSpeed = defaultWalkSpeed
+    end
+end
+
+local function SetNoclip(state)
     if state then
-        rs:BindToRenderStep("noclip", Enum.RenderPriority.Character.Value, function()
-            for _, part in pairs(lp.Character:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide == true then
+        if noclipConnection then return end
+        noclipConnection = RunService.Stepped:Connect(function()
+            for _, part in pairs(Character:GetChildren()) do
+                if part:IsA("BasePart") then
                     part.CanCollide = false
                 end
             end
         end)
-    end
-end
-
-function speedFunc(state)
-    local hum = lp.Character:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.WalkSpeed = state and 60 or 16
-    end
-end
-
-function invisFunc(state)
-    for _, p in pairs(lp.Character:GetDescendants()) do
-        if p:IsA("BasePart") and p.Name ~= "HumanoidRootPart" then
-            p.Transparency = state and 1 or 0
+    else
+        if noclipConnection then
+            noclipConnection:Disconnect()
+            noclipConnection = nil
+        end
+        for _, part in pairs(Character:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
         end
     end
 end
 
-function autoHop(state)
-    if not state then return end
-    spawn(function()
-        while configs["Auto-Hop Inteligente"] do
-            task.wait(3)
-            if workspace:FindFirstChild("Secret") == nil then
-                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId)
-            end
-        end
-    end)
+local escapePosition = Vector3.new(0, 50, 0)
+
+local function AutoEscape()
+    if not toggles.AutoEscape then return end
+    RootPart.CFrame = CFrame.new(escapePosition)
 end
 
-function autoSteal(state)
-    if not state then return end
-    spawn(function()
-        while configs["Auto-Roubo"] do
-            task.wait(0.5)
-            local brain = workspace:FindFirstChild("Brainrot")
-            if brain and brain:IsA("Tool") then
-                hrp.CFrame = brain.Handle.CFrame + Vector3.new(0, 5, 0)
-                firetouchinterest(brain.Handle, lp.Character:FindFirstChild("HumanoidRootPart"), 0)
-            end
+RunService.Heartbeat:Connect(function()
+    AutoHop()
+    SpeedBoost()
+    SetNoclip(toggles.Noclip)
+end)
+
+return {
+    SetToggle = function(name, state)
+        if toggles[name] ~= nil then
+            toggles[name] = state
         end
-    end)
+    end,
+    AutoEscape = AutoEscape,
+    }local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ESPEnabled = true
+local ESPObjects = {}
+
+local function CreateESP(part, color)
+    if ESPObjects[part] then return ESPObjects[part] end
+    local adorn = Instance.new("BoxHandleAdornment")
+    adorn.Adornee = part
+    adorn.AlwaysOnTop = true
+    adorn.ZIndex = 10
+    adorn.Transparency = 0.5
+    adorn.Size = part.Size
+    adorn.Color3 = color
+    adorn.Parent = part
+    ESPObjects[part] = adorn
+    return adorn
 end
 
-function fakeDrop()
-    local clone = Instance.new("Part", workspace)
-    clone.Size = Vector3.new(2, 2, 2)
-    clone.Color = Color3.fromRGB(200, 0, 200)
-    clone.Position = hrp.Position + Vector3.new(0, 3, 0)
-    clone.Anchored = true
-    clone.Name = "FakeBrainrot"
-    game:GetService("Debris"):AddItem(clone, 10)
+local function RemoveESP(part)
+    local adorn = ESPObjects[part]
+    if adorn then
+        adorn:Destroy()
+        ESPObjects[part] = nil
+    end
 end
 
-createToggle("Noclip", false, noclipFunc)
-createToggle("Speed Boost", true, speedFunc)
-createToggle("Invisibilidade", false, invisFunc)
-createToggle("Auto-Hop Inteligente", true, autoHop)
-createToggle("Auto-Roubo", true, autoSteal)
-createToggle("ESP Players/Secrets", true, function(state) end)
-createToggle("Teleportar para Secrets", false, function(state) end)
-createToggle("Modo Troll (Drop Fake)", false, function(state) if state then fakeDrop() end end)
+local function UpdateESP()
+    if not ESPEnabled then
+        for part, adorn in pairs(ESPObjects) do
+            adorn:Destroy()
+        end
+        ESPObjects = {}
+        return
+    end
 
-pcall(function()
-    local HttpService = game:GetService("HttpService")
-    if writefile and isfile then
-        if isfile("brainconfig.json") then
-            local data = HttpService:JSONDecode(readfile("brainconfig.json"))
-            for name, val in pairs(data) do
-                configs[name] = val
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            CreateESP(player.Character.HumanoidRootPart, Color3.new(1,0,0))
+        else
+            RemoveESP(player.Character and player.Character:FindFirstChild("HumanoidRootPart"))
+        end
+    end
+
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj.Name == "Brainrot" and obj:IsA("BasePart") then
+            CreateESP(obj, Color3.new(1,1,0))
+        elseif obj.Name == "Secret" and obj:IsA("BasePart") then
+            CreateESP(obj, Color3.new(0,1,1))
+        end
+    end
+end
+
+RunService.Heartbeat:Connect(UpdateESP)
+
+return {
+    SetESP = function(state)
+        ESPEnabled = state
+        if not state then
+            for part, adorn in pairs(ESPObjects) do
+                adorn:Destroy()
+            end
+            ESPObjects = {}
+        end
+    end
+    }local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+
+local toggles = {
+    AutoBrainrot = true,
+}
+
+local function getBrainrot()
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj.Name == "Brainrot" and obj:IsA("BasePart") then
+            return obj
+        end
+    end
+    return nil
+end
+
+local function isBrainrotFree(brainrot)
+    if not brainrot then return false end
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (player.Character.HumanoidRootPart.Position - brainrot.Position).Magnitude
+            if dist < 5 then
+                return false
             end
         end
-        writefile("brainconfig.json", HttpService:JSONEncode(configs))
+    end
+    return true
+end
+
+local function teleportTo(position)
+    RootPart.CFrame = CFrame.new(position + Vector3.new(0,3,0))
+end
+
+local function interactWithBrainrot(brainrot)
+    local prompt = nil
+    for _, child in pairs(brainrot:GetChildren()) do
+        if child:IsA("ProximityPrompt") then
+            prompt = child
+            break
+        end
+    end
+    if prompt then
+        prompt:InputHoldBegin()
+        wait(0.1)
+        prompt:InputHoldEnd()
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    if toggles.AutoBrainrot then
+        local brainrot = getBrainrot()
+        if brainrot and isBrainrotFree(brainrot) then
+            teleportTo(brainrot.Position)
+            interactWithBrainrot(brainrot)
+        end
     end
 end)
+
+return {
+    SetToggle = function(state)
+        toggles.AutoBrainrot = state
+    end,
+    }local RunService=game:GetService("RunService")
+local Workspace=game:GetService("Workspace")
+local LocalPlayer=game:GetService("Players").LocalPlayer
+local Character=LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local RootPart=Character:WaitForChild("HumanoidRootPart")
+local toggles={BaseProtection=true}
+local baseOpen=false
+local basePart=nil
+local baseButton=nil
+for _,obj in pairs(Workspace:GetChildren())do
+    if obj.Name=="BaseDoor"or obj.Name=="Base"then
+        basePart=obj
+        for _,child in pairs(obj:GetChildren())do
+            if child.Name=="Button"or child:IsA("ClickDetector")or child:IsA("ProximityPrompt")then
+                baseButton=child
+                break
+            end
+        end
+        break
+    end
+end
+local function checkBaseState()
+    if not basePart then return false end
+    if basePart:FindFirstChild("Open") and basePart.Open:IsA("BoolValue")then
+        return basePart.Open.Value
+    end
+    return false
+end
+local function onBaseOpened()
+    if not toggles.BaseProtection then return end
+    baseOpen=true
+end
+local function onBaseClosed()
+    baseOpen=false
+end
+RunService.Heartbeat:Connect(function()
+    local state=checkBaseState()
+    if state~=baseOpen then
+        if state then onBaseOpened() else onBaseClosed() end
+    end
+end)
+return{
+    SetToggle=function(state) toggles.BaseProtection=state end,
+    IsBaseOpen=function() return baseOpen end,
+    }local UserInputService=game:GetService("UserInputService")
+local RunService=game:GetService("RunService")
+local Players=game:GetService("Players")
+local LocalPlayer=Players.LocalPlayer
+local ScreenGui=Instance.new("ScreenGui")
+ScreenGui.Name="StealBrainrotGUI"
+ScreenGui.Parent=game.CoreGui
+local Frame=Instance.new("Frame",ScreenGui)
+Frame.Size=UDim2.new(0,300,0,400)
+Frame.Position=UDim2.new(0,50,0,50)
+Frame.BackgroundColor3=Color3.fromRGB(30,30,30)
+Frame.Active=true
+Frame.Draggable=true
+local UIListLayout=Instance.new("UIListLayout",Frame)
+UIListLayout.SortOrder=Enum.SortOrder.LayoutOrder
+UIListLayout.Padding=UDim.new(0,5)
+local Config={}
+local function CreateToggle(name,default,callback)
+    local toggleFrame=Instance.new("Frame",Frame)
+    toggleFrame.Size=UDim2.new(1,-10,0,30)
+    toggleFrame.BackgroundTransparency=1
+    local label=Instance.new("TextLabel",toggleFrame)
+    label.Text=name
+    label.Size=UDim2.new(0.7,0,1,0)
+    label.BackgroundTransparency=1
+    label.TextColor3=Color3.new(1,1,1)
+    label.TextXAlignment=Enum.TextXAlignment.Left
+    local toggleButton=Instance.new("TextButton",toggleFrame)
+    toggleButton.Size=UDim2.new(0.3,0,1,0)
+    toggleButton.Position=UDim2.new(0.7,0,0,0)
+    toggleButton.Text=default and"ON"or"OFF"
+    toggleButton.BackgroundColor3=default and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+    toggleButton.TextColor3=Color3.new(1,1,1)
+    toggleButton.MouseButton1Click:Connect(function()
+        local newState=toggleButton.Text=="OFF"
+        toggleButton.Text=newState and"ON"or"OFF"
+        toggleButton.BackgroundColor3=newState and Color3.fromRGB(0,170,0) or Color3.fromRGB(170,0,0)
+        if callback then callback(newState)end
+    end)
+    return toggleButton
+end
+local Toggles={}
+Toggles.AutoHop=CreateToggle("Auto Hop",true,function(state)Config.AutoHop=state end)
+Toggles.SpeedBoost=CreateToggle("Speed Boost",true,function(state)Config.SpeedBoost=state end)
+Toggles.Noclip=CreateToggle("Noclip",true,function(state)Config.Noclip=state end)
+Toggles.AutoBrainrot=CreateToggle("Auto Brainrot",true,function(state)Config.AutoBrainrot=state end)
+Toggles.ESP=CreateToggle("ESP",true,function(state)Config.ESP=state end)
+Toggles.BaseProtection=CreateToggle("Base Protection",true,function(state)Config.BaseProtection=state end)
+return{
+    GetConfig=function()return Config end,
+    SetToggleState=function(name,state)
+        if Toggles[name]then
+            Toggles[name].Text=state and"ON"or"OFF"
+            Toggles[name].BackgroundColor3=state and Color3.fromRGB(0,170,0)or Color3.fromRGB(170,0,0)
+            Config[name]=state
+        end
+    end,
+    Gui=ScreenGui,
+    }
